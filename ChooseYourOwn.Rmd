@@ -2,13 +2,16 @@
 title: "ChooseYourOwn"
 author: "Anindita Mukherjee"
 date: "6/8/2020"
-output: pdf_document
+output:
+  pdf_document: default
+  word_document: default
 ---
 
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+
 
 
 #Introduction
@@ -23,7 +26,6 @@ Data Download:
 
 
 ```{r}
-
 library(tidyverse)
 library(caret)
 library(data.table)
@@ -33,12 +35,14 @@ library(ggplot2)
 library(gam)
 library(dslabs)
 library(knitr)
+library(kernlab)
+library(tinytex)
 
 ##download data to be used
 dl <- tempfile()
 download.file("https://raw.githubusercontent.com/AndyMukherjee/BioMed_feature_of_orthopedic_patients/master/datasets_2374_3987_column_2C_weka.csv",dl)
 Bio <- read_csv(dl)
-
+options(warning = FALSE)
 ```
 
 I have downloaded the above data and put it in the dataframe "Bio". 
@@ -49,6 +53,7 @@ summary(Bio)
 nrow(Bio) # 310 rows 
 ncol(Bio) # 7 columns
 class(Bio)
+options(warning = FALSE)
 ```
 
 Bio has 310 rows and 7 coulmns. 
@@ -154,8 +159,8 @@ We have further divided the Train and Test sets into train_subset as the x and t
 ```{r}
 ##Using Logistic Regression to fit a model, to find the combined effect of all the columns
 ##together on the class, and find the accuracy of this.
-
-  fit <- train(train_subset, train_y, method = "glm")
+suppressWarnings(
+  fit <- train(train_subset, train_y, method = "glm"))
   fit$results
 ## Accuracy of the logistic regression model is : 0.850605 
 ```
@@ -168,7 +173,8 @@ Quadratic Discriminant Analysis or QDA is similar to LDA , but covarience matrix
 ##Using the LDA and QDA methods:
 
 ##LDA
-fit_lda <- train(class ~ ., method = "lda", data = train)
+suppressWarnings(
+fit_lda <- train(class ~ ., method = "lda", data = train))
 fit_lda$results["Accuracy"] # 0.8408057
 
 ##QDA
@@ -185,7 +191,8 @@ K Nearest Neighbor is a Parametric algorithm. Here we use a K number that is the
 
 ```{r}
 ##Using the KNN method:
-fit <- train(train_subset, train_y, method = "knn",tuneGrid = data.frame(k = seq(1,50,1)))
+suppressWarnings(
+fit <- train(train_subset, train_y, method = "knn",tuneGrid = data.frame(k = seq(1,50,1))))
 ggplot(fit)
 
 ##Looking at the graph since there is a steady decrease in accuracy from 20, 
@@ -194,8 +201,8 @@ ggplot(fit)
 
 ```{r}
 ##I will narrow the k value from 1 to 20, to have a clearer view
-
-fit_knn <- train(train_subset, train_y, method = "knn",tuneGrid = data.frame(k = seq(1,20,1)))
+suppressWarnings(
+fit_knn <- train(train_subset, train_y, method = "knn",tuneGrid = data.frame(k = seq(1,20,1))))
 ggplot(fit_knn)
 fit_knn$results
 
@@ -211,8 +218,9 @@ Recurssive Partitioning helps us explore thestructure of a dataset in a visual d
 
 ```{r}
 ##Rpart
+suppressWarnings(
 fit_rpart <- train(train_subset, train_y, method = "rpart",
-             tuneGrid = data.frame(cp = seq(0, 10, 1)))
+             tuneGrid = data.frame(cp = seq(0, 10, 1))))
 
 ggplot(fit_rpart)
 confusionMatrix(fit_rpart)
@@ -231,10 +239,11 @@ The accuracy of the above model is 0.7997
 The random forest of the RF model is also a Tree bases model. This model reduces instability by averaging multiple dicision trees. It is a forest of trees constructed with randomness
 
 ```{r}
-##Using random forest method : 
+##Using random forest method :
+suppressWarnings(
 fit_rf <- train(train_subset, train_y, method = "rf",
                 nodesize = 1,
-                tuneGrid = data.frame(mtry = seq(0, 10, 2)))
+                tuneGrid = data.frame(mtry = seq(0, 10, 2))))
 ggplot(fit_rf)
 confusionMatrix(fit_rf)  #Accuracy=  0.8391
 fit_rf$bestTune #mtry = 2
@@ -245,8 +254,10 @@ fit_rf$bestTune #mtry = 2
 Multinorm is used to calculate a multivariate normal distribution
 ```{r}
 ##Multinorm Method:
-fit_multi <- train(class ~ . , method = "multinom", data = train)
-confusionMatrix(fit_multi) ## Accuracy = 0.847
+suppressWarnings(
+fit_multi <- train(class ~ . , method = "multinom", data = train))
+#confusionMatrix(fit_multi) ##commenting it because it is blowing up the console
+ ## Accuracy = 0.847
 ```
 The Accuracy of this model is 0.847
 
@@ -254,7 +265,8 @@ The Accuracy of this model is 0.847
 Support Vector Machine is used for both regression and classification
 ```{r}
 ##SVM Linear model:
- fit_svm <- train(class ~ . , method = "svmLinear", data = train)
+suppressWarnings(
+ fit_svm <- train(class ~ . , method = "svmLinear", data = train))
  confusionMatrix(fit_svm) ## Accuracy = 0.8408
 ```
 The Accuracy of this method is 0.8408
@@ -266,16 +278,16 @@ Compairing all the methods together, to get which method gives the best accuracy
 ## Joining all the models together to get the accuracy of each model to compare :
 
 model <- c("glm", "lda", "knn", "rf", "svmLinear",  "multinom")
-
+suppressWarnings(
 fits <- lapply(model, function(model){
   #print(model)
   train(class ~ . , method = model, data = train)
-})
+}))
 
-
+suppressWarnings(
 pred <- sapply(fits, function(x){
   predict(x, newdata = test)
-})
+}))
 
 ## get the Accuracy for each method:
 
@@ -291,8 +303,10 @@ The above results suggests that the best accuracy is in the multinorm model : 0.
 This method takes the average of all the methods
 ```{r}
 ##Ensemble Method: 
-En <- rowMeans(pred == "Normal")
-y_hat <- ifelse(En > 0.5, "Normal", "Abnormal")
+suppressWarnings(
+En <- rowMeans(pred == "Normal"))
+suppressWarnings(
+y_hat <- ifelse(En > 0.5, "Normal", "Abnormal"))
 mean(y_hat == test$class)
 ##Accuracy: 0.8709677
 
