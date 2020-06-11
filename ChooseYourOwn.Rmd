@@ -1,0 +1,309 @@
+---
+title: "ChooseYourOwn"
+author: "Anindita Mukherjee"
+date: "6/8/2020"
+output: pdf_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+#Introduction
+
+#Goal of the Project
+The goal of this project is to create a model that can predict the class of orthopedic patients. We want to classify the patients as belonging to one of the two categories, "Normal" and "Abnormal". 
+#The dataset and variables
+If a patient has either "Disk Hernia" or "Spondylolisthesis", the patient is classified as "Abnormal" otherwise "Normal"
+I have used the dataset "Biomechanical Features of Orthopedic Patients" file "column_2C_weka.csv" from Kaggle on the site : https://www.kaggle.com/uciml/biomechanical-features-of-orthopedic-patients
+
+Data Download:
+
+
+```{r}
+
+library(tidyverse)
+library(caret)
+library(data.table)
+library(readr)
+library(rpart)
+library(ggplot2)
+library(gam)
+library(dslabs)
+library(knitr)
+
+##download data to be used
+dl <- tempfile()
+download.file("https://raw.githubusercontent.com/AndyMukherjee/BioMed_feature_of_orthopedic_patients/master/datasets_2374_3987_column_2C_weka.csv",dl)
+Bio <- read_csv(dl)
+
+```
+
+I have downloaded the above data and put it in the dataframe "Bio". 
+```{r}
+## View the data : data Visualization
+head(Bio)
+summary(Bio)
+nrow(Bio) # 310 rows 
+ncol(Bio) # 7 columns
+class(Bio)
+```
+
+Bio has 310 rows and 7 coulmns. 
+Each patient is represented in the data by six biomechanical attributes derived from the shape and orientation of the pelvis and lumbar spine.Each of these in each column. The coulmns are: pelvic_incidence, pelvic_tilt numeric, lumbar_lordosis_angle, sacral_slope, pelvic_radius and degree_spondylolisthesis.
+The last column is "class" that we are going to determine in our model. The class is either "Normal" or "Abnormal".
+
+#Key steps:
+1. Visualizing the data, to see if a single attribute is responsible for the class determination
+2.Divding the data into Train and Test sets to train and test the models
+3.Determine the accuracy of each model
+4.Compare the models 
+5.Get the best approach
+
+#Method/Analysis
+
+#Data visualization:
+Visualizing the data to determine if a single attribute is responsible to determine the class.
+
+Checking the relationship of Class with pelvic_incidence
+```{r}
+##Check the relationship of Class with pelvic_incidence
+
+
+Bio %>% ggplot(aes(`pelvic_incidence`, fill = class))+geom_density(alpha = 0.3)
+
+##The overlaping densities tell us that pelvic_incidence donot independently determine the class
+
+```
+
+
+Check the relationship of Class with pelvic_tilt numeric:
+```{r}
+##Check the relationship of Class with pelvic_tilt numeric
+
+Bio %>% ggplot(aes(`pelvic_tilt numeric`, fill = class))+geom_density(alpha = 0.3)
+##The overlaping densities tell us that pelvic_tilt numeric donot independently determine the class
+```
+
+Check the relationship of Class with lumbar_lordosis_angle
+```{r}
+##Check the relationship of Class with lumbar_lordosis_angle
+
+Bio %>% ggplot(aes(`lumbar_lordosis_angle`, fill = class))+geom_density(alpha = 0.3)
+
+##The overlaping densities tell us that lumbar_lordosis_angle donot independently determine the class
+
+```
+
+Check the relationship of Class with sacral_slope
+```{r}
+
+##Check the relationship of Class with sacral_slope
+
+Bio %>% ggplot(aes(`sacral_slope`, fill = class))+geom_density(alpha = 0.3)
+
+##The overlaping densities tell us that sacral_slope donot independently determine the class
+
+```
+
+Check the relationship of Class with pelvic_radius
+```{r}
+##Check the relationship of Class with pelvic_radius
+
+
+Bio %>% ggplot(aes(`pelvic_radius`, fill = class))+geom_density(alpha = 0.3)
+
+##The overlaping densities tell us that pelvic_radius donot independently determine the class
+```
+
+Check the relationship of Class with degree_spondylolisthesis
+```{r}
+##Check the relationship of Class with degree_spondylolisthesis
+
+Bio %>% ggplot(aes(`degree_spondylolisthesis`, fill = class))+geom_density(alpha = 0.3)
+
+##The overlaping densities tell us that degree_spondylolisthesis donot independently determine the class
+```
+
+The overlapping densities in all the above plots suggest that none of the attributes are individually responsible for determining the class.
+
+#Data Cleansing
+We will now divide the Bio data into "train" and "test" sets, as 80 % and 20% respectively.
+```{r}
+###################################################
+#Training the models:
+
+#Dividing the dataset of "Bio" into train and test sets
+
+test_index <- createDataPartition(y = Bio$class, times = 1, p = 0.2, list = FALSE )
+train <- Bio[-test_index,] #248 rows
+test <- Bio[test_index,] #62 rows
+
+##creating x and y( subsets are x)
+train_subset <- subset(train, select = -class)
+test_subset <- subset(test, select = -class)
+train_y <- train$class
+test_y <- test$class
+```
+We have further divided the Train and Test sets into train_subset as the x and train_y as the y for train set and test_subset as the x and test_y as the y for test, inorder to use them as "y ~ x" in some of the methods
+
+#Modeling
+1. Logistic Regression: Logistic regression is the method of fitting a regression curve y=f(x), where y is a categorical Value(NOrmal and Abnormal in this case), and x is a given set of predictors.
+```{r}
+##Using Logistic Regression to fit a model, to find the combined effect of all the columns
+##together on the class, and find the accuracy of this.
+
+  fit <- train(train_subset, train_y, method = "glm")
+  fit$results
+## Accuracy of the logistic regression model is : 0.850605 
+```
+Accuracy of the logistic regression model is : 0.850605
+
+2.LDA and QDA: 
+Linear Discriminant Analysis or LDA is similar to Logistic regression or glm method where y depends of the values of a set of predictors that is x and the distribution of x is normal.
+Quadratic Discriminant Analysis or QDA is similar to LDA , but covarience matrix is not common. 
+```{r}
+##Using the LDA and QDA methods:
+
+##LDA
+fit_lda <- train(class ~ ., method = "lda", data = train)
+fit_lda$results["Accuracy"] # 0.8408057
+
+##QDA
+
+# fit_qda <- train(class ~ ., method = "qda", data = train)
+# fit_qda$results#["Accuracy"] #no results
+## need to comment this out, else the code gives error
+```
+
+In the above models only LDA gave results and the Accuracy of the model is 0.8408057
+
+3.KNN
+K Nearest Neighbor is a Parametric algorithm. Here we use a K number that is the tuning parameter to determine the number of nearest neighbors that gives the best Accuracy results.
+
+```{r}
+##Using the KNN method:
+fit <- train(train_subset, train_y, method = "knn",tuneGrid = data.frame(k = seq(1,50,1)))
+ggplot(fit)
+
+##Looking at the graph since there is a steady decrease in accuracy from 20, 
+
+```
+
+```{r}
+##I will narrow the k value from 1 to 20, to have a clearer view
+
+fit_knn <- train(train_subset, train_y, method = "knn",tuneGrid = data.frame(k = seq(1,20,1)))
+ggplot(fit_knn)
+fit_knn$results
+
+## so K value of 5 has the heighest accuracy : 0.8333217 
+## but this is still less than the glm method
+```
+
+
+The Accuracy of the above model is 0.8333217
+
+4.Rpart
+Recurssive Partitioning helps us explore thestructure of a dataset in a visual discision tree outcome. This is a tree based model. 
+
+```{r}
+##Rpart
+fit_rpart <- train(train_subset, train_y, method = "rpart",
+             tuneGrid = data.frame(cp = seq(0, 10, 1)))
+
+ggplot(fit_rpart)
+confusionMatrix(fit_rpart)
+## Accuracy is : 0.7997
+```
+
+```{r}
+## Ploting the final Model
+plot(fit_rpart$finalModel, margin = 0.1)
+text(fit_rpart$finalModel)
+```
+
+The accuracy of the above model is 0.7997
+
+5.Random Forest
+The random forest of the RF model is also a Tree bases model. This model reduces instability by averaging multiple dicision trees. It is a forest of trees constructed with randomness
+
+```{r}
+##Using random forest method : 
+fit_rf <- train(train_subset, train_y, method = "rf",
+                nodesize = 1,
+                tuneGrid = data.frame(mtry = seq(0, 10, 2)))
+ggplot(fit_rf)
+confusionMatrix(fit_rf)  #Accuracy=  0.8391
+fit_rf$bestTune #mtry = 2
+```
+ The Accuracy is 0.8391
+ 
+6.Multinorm
+Multinorm is used to calculate a multivariate normal distribution
+```{r}
+##Multinorm Method:
+fit_multi <- train(class ~ . , method = "multinom", data = train)
+confusionMatrix(fit_multi) ## Accuracy = 0.847
+```
+The Accuracy of this model is 0.847
+
+7.SVM
+Support Vector Machine is used for both regression and classification
+```{r}
+##SVM Linear model:
+ fit_svm <- train(class ~ . , method = "svmLinear", data = train)
+ confusionMatrix(fit_svm) ## Accuracy = 0.8408
+```
+The Accuracy of this method is 0.8408
+
+8.All together
+Compairing all the methods together, to get which method gives the best accuracy
+
+```{r}
+## Joining all the models together to get the accuracy of each model to compare :
+
+model <- c("glm", "lda", "knn", "rf", "svmLinear",  "multinom")
+
+fits <- lapply(model, function(model){
+  #print(model)
+  train(class ~ . , method = model, data = train)
+})
+
+
+pred <- sapply(fits, function(x){
+  predict(x, newdata = test)
+})
+
+## get the Accuracy for each method:
+
+colMeans(pred == test$class)
+
+##0.8709677 0.8548387 0.8548387 0.8387097 0.8709677 0.8870968
+##According to the above result the best accuracy is from multinom model
+```
+
+The above results suggests that the best accuracy is in the multinorm model : 0.8870968
+
+9.Ensemble
+This method takes the average of all the methods
+```{r}
+##Ensemble Method: 
+En <- rowMeans(pred == "Normal")
+y_hat <- ifelse(En > 0.5, "Normal", "Abnormal")
+mean(y_hat == test$class)
+##Accuracy: 0.8709677
+
+```
+The accuracy is 0.8709677
+
+#Results
+Comparing all models together we see that the best accuracy is from the Multinorm Model:0.8870968. Ensembling all models together provided the accuracy of 0.8709677 that is the same as glm and svmLinear methods.
+
+#Conclusion
+I have used 9 methods to determine the best suited model that can predict the class of a patient to be either Normal or Abnormal. Out of these The multinorm method gave the best results and the ensemble, glm and SVMLinear gave the average results. 
+The Potential impact of this research is to get the best model that in this case is the multinorm model.
+Limitations of my work is that the QDA and the GamLoess method did not give any results
+Future work on this is that we can use a few more alogorithms to test which could perform better than the Multinorm model.
