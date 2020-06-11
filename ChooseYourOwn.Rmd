@@ -256,7 +256,7 @@ Multinorm is used to calculate a multivariate normal distribution
 ##Multinorm Method:
 suppressWarnings(
 fit_multi <- train(class ~ . , method = "multinom", data = train))
-#confusionMatrix(fit_multi) ##commenting it because it is blowing up the console
+confusionMatrix(fit_multi)
  ## Accuracy = 0.847
 ```
 The Accuracy of this model is 0.847
